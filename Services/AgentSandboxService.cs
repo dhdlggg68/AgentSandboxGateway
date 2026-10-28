@@ -75,7 +75,7 @@ public class AgentSandboxService
 
     #region 扣子OpenApi发送对话（原有逻辑不变）
 
-    public async Task<string> SendChat(ChatSendDto dto, SessionStateManager? sessionMgr = null)
+    public async Task<string> SendChat(ChatSendDto dto, SessionStateManager? sessionMgr = null, string? overrideConvId = null)
     {
         var token = _cfg.CozeApiToken?.Trim();
         if (string.IsNullOrWhiteSpace(token))
@@ -83,23 +83,25 @@ public class AgentSandboxService
             return "CozeApiToken配置为空";
         }
         var cozeChatUrl = "https://api.coze.cn/v3/chat";
-        var reqBody = new
+        var reqDict = new Dictionary<string, object?>
         {
-            bot_id = _cfg.CozeBotId,
-            user_id = dto.SessionId,
-            stream = false,
-            auto_save_history = true,
-            additional_messages = new[]
+            ["bot_id"] = _cfg.CozeBotId,
+            ["user_id"] = dto.SessionId,
+            ["stream"] = false,
+            ["auto_save_history"] = true,
+        };
+        if (!string.IsNullOrEmpty(overrideConvId))
+            reqDict["conversation_id"] = overrideConvId;
+        reqDict["additional_messages"] = new[]
+        {
+            new
             {
-                new
-                {
-                    role = "user",
-                    content = dto.Prompt,
-                    content_type = "text",
-                },
+                role = "user",
+                content = dto.Prompt,
+                content_type = "text",
             },
         };
-        var jsonStr = System.Text.Json.JsonSerializer.Serialize(reqBody);
+        var jsonStr = System.Text.Json.JsonSerializer.Serialize(reqDict);
         var clientChat = _httpFactory.CreateClient();
         var postMsg = new HttpRequestMessage(HttpMethod.Post, cozeChatUrl);
         postMsg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -227,32 +229,34 @@ public class AgentSandboxService
                     return $"__TOOL_APPROVE__{System.Text.Json.JsonSerializer.Serialize(toolResp)}";
                 }
 
-                //==== Hack：不submit_tool_outputs，丢弃旧chat，新建对话传入tool结果获取AI回答 ====
+                //==== Hack：不submit_tool_outputs，新建对话传入tool结果获取AI回答 ====
                 var clientNew = _httpFactory.CreateClient();
-                var newChatBody = new
+                var newChatDict = new Dictionary<string, object?>
                 {
-                    bot_id = _cfg.CozeBotId,
-                    user_id = dto.SessionId,
-                    stream = false,
-                    auto_save_history = true,
-                    additional_messages = new object[]
+                    ["bot_id"] = _cfg.CozeBotId,
+                    ["user_id"] = dto.SessionId,
+                    ["stream"] = false,
+                    ["auto_save_history"] = true,
+                };
+                if (!string.IsNullOrEmpty(convId))
+                    newChatDict["conversation_id"] = convId;
+                newChatDict["additional_messages"] = new object[]
+                {
+                    new
                     {
-                        new
-                        {
-                            role = "user",
-                            content = dto.Prompt,
-                            content_type = "text",
-                        },
-                        new
-                        {
-                            role = "tool",
-                            tool_call_id = toolCallId,
-                            content = System.Text.Json.JsonSerializer.Serialize(toolResp),
-                            content_type = "text",
-                        },
+                        role = "user",
+                        content = dto.Prompt,
+                        content_type = "text",
+                    },
+                    new
+                    {
+                        role = "tool",
+                        tool_call_id = toolCallId,
+                        content = System.Text.Json.JsonSerializer.Serialize(toolResp),
+                        content_type = "text",
                     },
                 };
-                var newJson = System.Text.Json.JsonSerializer.Serialize(newChatBody);
+                var newJson = System.Text.Json.JsonSerializer.Serialize(newChatDict);
                 var newMsg = new HttpRequestMessage(HttpMethod.Post, cozeChatUrl);
                 newMsg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 newMsg.Content = new StringContent(newJson, Encoding.UTF8, "application/json");

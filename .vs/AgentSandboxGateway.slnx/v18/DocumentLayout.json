@@ -3,8 +3,8 @@
   "WorkspaceRootPath": "E:\\AgentSandboxGateway\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|e:\\agentsandboxgateway\\views\\home\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|solutionrelative:views\\home\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|e:\\agentsandboxgateway\\models.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|solutionrelative:models.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|e:\\agentsandboxgateway\\controllers\\homecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -15,8 +15,8 @@
       "RelativeMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|solutionrelative:services\\agentsandboxservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|e:\\agentsandboxgateway\\models.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|solutionrelative:models.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|e:\\agentsandboxgateway\\views\\home\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|solutionrelative:views\\home\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{933A2187-73F8-4A85-E536-30450E0AA2C6}|AgentSandboxGateway.csproj|e:\\agentsandboxgateway\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -30,8 +30,16 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 10,
+          "SelectedChildIndex": 8,
           "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{99b8fa2f-ab90-4f57-9c32-949f146f1914}"
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{e506b91c-c606-466a-90a9-123d1d1e12b3}"
@@ -58,13 +66,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 0,
               "Title": "Models.cs",
               "DocumentMoniker": "E:\\AgentSandboxGateway\\Models.cs",
               "RelativeDocumentMoniker": "Models.cs",
               "ToolTip": "E:\\AgentSandboxGateway\\Models.cs",
               "RelativeToolTip": "Models.cs",
-              "ViewState": "AgIAADYAAAAAAAAAAADwv0UAAAA5AAAAAAAAAA==",
+              "ViewState": "AgIAADYAAAAAAAAAAADwv0EAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-10-28T01:04:33.456Z",
               "EditorCaption": ""
@@ -77,7 +85,7 @@
               "RelativeDocumentMoniker": "Controllers\\HomeController.cs",
               "ToolTip": "E:\\AgentSandboxGateway\\Controllers\\HomeController.cs",
               "RelativeToolTip": "Controllers\\HomeController.cs",
-              "ViewState": "AgIAANIAAAAAAAAAAADwv98AAAApAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAgAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-10-28T00:13:32.381Z",
               "EditorCaption": ""
@@ -88,9 +96,9 @@
               "Title": "AgentSandboxService.cs",
               "DocumentMoniker": "E:\\AgentSandboxGateway\\Services\\AgentSandboxService.cs",
               "RelativeDocumentMoniker": "Services\\AgentSandboxService.cs",
-              "ToolTip": "E:\\AgentSandboxGateway\\Services\\AgentSandboxService.cs*",
-              "RelativeToolTip": "Services\\AgentSandboxService.cs*",
-              "ViewState": "AgIAAHYEAAAAAAAAAAAUwD4FAAAgAAAAAAAAAA==",
+              "ToolTip": "E:\\AgentSandboxGateway\\Services\\AgentSandboxService.cs",
+              "RelativeToolTip": "Services\\AgentSandboxService.cs",
+              "ViewState": "AgIAAH8EAAAAAAAAAAAYwDwFAAAVAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-10-26T06:27:10.687Z",
               "EditorCaption": ""
@@ -105,17 +113,18 @@
               "RelativeToolTip": "Program.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAADAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-10-26T06:22:39.784Z"
+              "WhenOpened": "2026-10-26T06:22:39.784Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 3,
               "Title": "Index.cshtml",
               "DocumentMoniker": "E:\\AgentSandboxGateway\\Views\\Home\\Index.cshtml",
               "RelativeDocumentMoniker": "Views\\Home\\Index.cshtml",
               "ToolTip": "E:\\AgentSandboxGateway\\Views\\Home\\Index.cshtml",
               "RelativeToolTip": "Views\\Home\\Index.cshtml",
-              "ViewState": "AgIAAIIBAAAAAAAAAAAYwJUBAAAvAAAAAAAAAA==",
+              "ViewState": "AgIAAIIBAAAAAAAAAAAYwJQBAABPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
               "WhenOpened": "2026-10-26T06:19:31.356Z",
               "EditorCaption": ""

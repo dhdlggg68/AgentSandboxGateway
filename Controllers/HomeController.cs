@@ -110,7 +110,8 @@ public class HomeController : Controller
         }
 
         //========== 下面完全是你原来的老代码，一字不动 ==========
-        var resText = await _sandboxSvc.SendChat(dto, _sessionMgr);
+        var cozeConvId = string.IsNullOrEmpty(session.CozeConvId) ? null : session.CozeConvId;
+        var resText = await _sandboxSvc.SendChat(dto, _sessionMgr, cozeConvId);
 
         // =========【新增】提取 {{PAYLOAD:xxx}} 存入会话状态 =========
         var match = Regex.Match(resText, @"\{\{PAYLOAD:(.+?)\}\}\}", RegexOptions.Singleline);

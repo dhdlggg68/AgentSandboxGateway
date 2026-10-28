@@ -71,4 +71,3 @@ E:\AgentSandboxGateway\obj\Debug\net8.0\scopedcss\scopedcss.cache
 E:\AgentSandboxGateway\obj\Debug\net8.0\swae.build.ex.cache
 E:\AgentSandboxGateway\obj\Debug\net8.0\AgentSandboxGateway.sourcelink.json
 E:\AgentSandboxGateway\bin\Debug\net8.0\dotnet-tools.json
-E:\AgentSandboxGateway\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt

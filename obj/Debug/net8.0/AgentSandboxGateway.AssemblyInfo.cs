@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AgentSandboxGateway")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0ca93830f618aae9488e9270246ce00e2eade1b5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a213fb723dde3efc19b758c0073c23f296ed72b0")]
 [assembly: System.Reflection.AssemblyProductAttribute("AgentSandboxGateway")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AgentSandboxGateway")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
