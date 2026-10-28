@@ -171,6 +171,9 @@ public class SessionState
 {
     public SessionFlow Flow { get; set; } = SessionFlow.Idle;
     public AddDraftOrderPayload? PendingOrder { get; set; }
+
+    /// <summary>扣子真实 conversation_id，首次对话后由服务自动回填，后续请求复用此 ID 保持上下文连贯</summary>
+    public string? CozeConvId { get; set; }
 }
 
 public class ChatResponse

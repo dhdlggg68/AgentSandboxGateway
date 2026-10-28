@@ -47,17 +47,31 @@ public class HomeController : Controller
                 return Content("当前没有待确认的订单，请先发起新建订单。");
             }
 
-            // 直接调用底层工具执行建单
+            // 直接调用底层工具执行建单（含去重保护）
             using var conn = _sandboxSvc.GetConnection();
-            using var tx = conn.BeginTransaction();
-            var resObj = await _sandboxSvc.RunAddDraftInner(session.PendingOrder!, conn, tx);
-
-            tx.Commit();
+            var orderId = session.PendingOrder.OrderId;
+            if (string.IsNullOrEmpty(orderId))
+            {
+                var today = DateTime.Now.ToString("yyyyMMdd");
+                var sqlMax = $"SELECT order_id FROM orders WHERE order_id LIKE 'ORD{today}%' ORDER BY order_id DESC LIMIT 1";
+                using var cmdMax = new Microsoft.Data.Sqlite.SqliteCommand(sqlMax, conn);
+                var lastId = cmdMax.ExecuteScalar() as string;
+                var seq = lastId != null ? int.Parse(lastId.Substring(10)) + 1 : 1;
+                orderId = $"ORD{today}{seq:D3}";
+                session.PendingOrder.OrderId = orderId;
+            }
+            var existCmd = new Microsoft.Data.Sqlite.SqliteCommand(
+                "SELECT 1 FROM orders WHERE order_id = @oid LIMIT 1", conn);
+            existCmd.Parameters.AddWithValue("@oid", orderId);
+            var exists = existCmd.ExecuteScalar() != null;
+            if (!exists)
+            {
+                using var tx = conn.BeginTransaction();
+                var resObj = await _sandboxSvc.RunAddDraftInner(session.PendingOrder!, conn, tx);
+                tx.Commit();
+            }
             _sessionMgr.Clear(dto.SessionId);
-
-            var jsonRes = System.Text.Json.JsonSerializer.Serialize(resObj);
-
-            return Content(jsonRes);
+            return Content($"订单 {orderId} 已创建（或已存在），无需重复操作。");
         }
 
         //========== 分支2：用户打字输入“正确/确认”兜底 ==========
@@ -70,19 +84,33 @@ public class HomeController : Controller
             if (session.Flow == SessionFlow.AddDraftConfirm && session.PendingOrder != null)
             {
                 using var conn = _sandboxSvc.GetConnection();
-                using var tx = conn.BeginTransaction();
-                var resObj = await _sandboxSvc.RunAddDraftInner(session.PendingOrder!, conn, tx);
-
-                tx.Commit();
+                var orderId2 = session.PendingOrder.OrderId;
+                if (string.IsNullOrEmpty(orderId2))
+                {
+                    var today = DateTime.Now.ToString("yyyyMMdd");
+                    var sqlMax = $"SELECT order_id FROM orders WHERE order_id LIKE 'ORD{today}%' ORDER BY order_id DESC LIMIT 1";
+                    using var cmdMax = new Microsoft.Data.Sqlite.SqliteCommand(sqlMax, conn);
+                    var lastId = cmdMax.ExecuteScalar() as string;
+                    var seq = lastId != null ? int.Parse(lastId.Substring(10)) + 1 : 1;
+                    orderId2 = $"ORD{today}{seq:D3}";
+                    session.PendingOrder.OrderId = orderId2;
+                }
+                var existCmd2 = new Microsoft.Data.Sqlite.SqliteCommand(
+                    "SELECT 1 FROM orders WHERE order_id = @oid LIMIT 1", conn);
+                existCmd2.Parameters.AddWithValue("@oid", orderId2);
+                if (existCmd2.ExecuteScalar() == null)
+                {
+                    using var tx = conn.BeginTransaction();
+                    var resObj = await _sandboxSvc.RunAddDraftInner(session.PendingOrder!, conn, tx);
+                    tx.Commit();
+                }
                 _sessionMgr.Clear(dto.SessionId);
-                var jsonRes = System.Text.Json.JsonSerializer.Serialize(resObj);
-
-                return Content(jsonRes);
+                return Content($"订单 {orderId2} 已创建（或已存在）。");
             }
         }
 
         //========== 下面完全是你原来的老代码，一字不动 ==========
-        var resText = await _sandboxSvc.SendChat(dto);
+        var resText = await _sandboxSvc.SendChat(dto, _sessionMgr);
 
         // =========【新增】提取 {{PAYLOAD:xxx}} 存入会话状态 =========
         var match = Regex.Match(resText, @"\{\{PAYLOAD:(.+?)\}\}\}", RegexOptions.Singleline);
@@ -117,6 +145,27 @@ public class HomeController : Controller
             return Content(jsonPart);
         }
 
+        // add_draft 参数不足：Bot 收到提示后会带着真实明细重新发起工具调用
+        if (displayText.Contains("缺少 items 参数"))
+        {
+            // 保存已提取的 payload，供下次确认使用
+            if (match.Success)
+            {
+                var jsonPayload = match.Groups[1].Value;
+                try
+                {
+                    var opt = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    var payload = System.Text.Json.JsonSerializer.Deserialize<AddDraftOrderPayload>(jsonPayload, opt);
+                    if (payload != null) _sessionMgr.SetAddDraftConfirm(dto.SessionId, payload);
+                }
+                catch { }
+            }
+            return Content(
+                "已收到订单信息，请提供商品明细后我为您建单。\n" +
+                "请在下次消息中明确说明商品名称、数量和单价。"
+            );
+        }
+
         return Content(displayText);
     }
 
@@ -138,9 +187,23 @@ public class HomeController : Controller
             await Response.Body.FlushAsync(cancellationToken);
             return;
         }
+
+        // 优先使用已存储的扣子真实 conversation_id，保持上下文连贯
+        var session = _sessionMgr.GetOrCreate(sessionId);
+        var cozeConvId = string.IsNullOrEmpty(session.CozeConvId) ? sessionId : session.CozeConvId;
+
         try
         {
-            await _sandboxSvc.StreamChatAsync(_cfg.CozeBotId, sessionId, sessionId, prompt, Response.Body, cancellationToken);
+            await _sandboxSvc.StreamChatAsync(
+                _cfg.CozeBotId,
+                cozeConvId,
+                sessionId,
+                prompt,
+                Response.Body,
+                cancellationToken,
+                _sessionMgr,
+                sessionId
+            );
             await Response.Body.FlushAsync(cancellationToken);
         }
         catch (OperationCanceledException)
@@ -149,7 +212,10 @@ public class HomeController : Controller
         }
         catch (Exception ex)
         {
-            await Response.WriteAsync($"data:{System.Text.Json.JsonSerializer.Serialize(new { Error = ex.Message })}\n\n", cancellationToken);
+            await Response.WriteAsync(
+                $"data:{System.Text.Json.JsonSerializer.Serialize(new { Error = ex.Message })}\n\n",
+                cancellationToken
+            );
             await Response.Body.FlushAsync(cancellationToken);
         }
     }

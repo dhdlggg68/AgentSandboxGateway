@@ -30,8 +30,16 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 8,
+          "SelectedChildIndex": 10,
           "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{e506b91c-c606-466a-90a9-123d1d1e12b3}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:13:0:{2456bd12-ecf7-4988-a4a6-67d49173f565}"
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:14:0:{2456bd12-ecf7-4988-a4a6-67d49173f565}"
@@ -46,7 +54,7 @@
             },
             {
               "$type": "Bookmark",
-              "Name": "ST:0:0:{99b8fa2f-ab90-4f57-9c32-949f146f1914}"
+              "Name": "ST:17:0:{2456bd12-ecf7-4988-a4a6-67d49173f565}"
             },
             {
               "$type": "Document",
@@ -69,7 +77,7 @@
               "RelativeDocumentMoniker": "Controllers\\HomeController.cs",
               "ToolTip": "E:\\AgentSandboxGateway\\Controllers\\HomeController.cs",
               "RelativeToolTip": "Controllers\\HomeController.cs",
-              "ViewState": "AgIAAJMAAAAAAAAAAADwv50AAAApAAAAAAAAAA==",
+              "ViewState": "AgIAANIAAAAAAAAAAADwv98AAAApAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-10-28T00:13:32.381Z",
               "EditorCaption": ""
@@ -80,9 +88,9 @@
               "Title": "AgentSandboxService.cs",
               "DocumentMoniker": "E:\\AgentSandboxGateway\\Services\\AgentSandboxService.cs",
               "RelativeDocumentMoniker": "Services\\AgentSandboxService.cs",
-              "ToolTip": "E:\\AgentSandboxGateway\\Services\\AgentSandboxService.cs",
-              "RelativeToolTip": "Services\\AgentSandboxService.cs",
-              "ViewState": "AgIAAFgEAAAAAAAAAAAUwPMEAAAgAAAAAAAAAA==",
+              "ToolTip": "E:\\AgentSandboxGateway\\Services\\AgentSandboxService.cs*",
+              "RelativeToolTip": "Services\\AgentSandboxService.cs*",
+              "ViewState": "AgIAAHYEAAAAAAAAAAAUwD4FAAAgAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-10-26T06:27:10.687Z",
               "EditorCaption": ""
@@ -107,7 +115,7 @@
               "RelativeDocumentMoniker": "Views\\Home\\Index.cshtml",
               "ToolTip": "E:\\AgentSandboxGateway\\Views\\Home\\Index.cshtml",
               "RelativeToolTip": "Views\\Home\\Index.cshtml",
-              "ViewState": "AgIAAEQAAAAAAAAAAAAywFkAAAAWAAAAAAAAAA==",
+              "ViewState": "AgIAAIIBAAAAAAAAAAAYwJUBAAAvAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
               "WhenOpened": "2026-10-26T06:19:31.356Z",
               "EditorCaption": ""

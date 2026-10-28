@@ -75,7 +75,7 @@ public class AgentSandboxService
 
     #region 扣子OpenApi发送对话（原有逻辑不变）
 
-    public async Task<string> SendChat(ChatSendDto dto)
+    public async Task<string> SendChat(ChatSendDto dto, SessionStateManager? sessionMgr = null)
     {
         var token = _cfg.CozeApiToken?.Trim();
         if (string.IsNullOrWhiteSpace(token))
@@ -119,6 +119,9 @@ public class AgentSandboxService
         var convId = dataEl.TryGetProperty("conversation_id", out var convEl)
             ? convEl.ToString()
             : null;
+        // 首次对话：捕获真实 convId 并保存到会话状态
+        if (convId != null && sessionMgr != null)
+            SaveCozeConvId(sessionMgr, dto.SessionId, convId);
         if (string.IsNullOrEmpty(chatId) || string.IsNullOrEmpty(convId))
         {
             return $"chat_id / conversation_id 获取失败：{respPostText}";
@@ -270,6 +273,9 @@ public class AgentSandboxService
                 var newConvId = newDataEl.TryGetProperty("conversation_id", out var newConvEl)
                     ? newConvEl.ToString()
                     : null;
+                // 保存后置对话 convId（与初始 convId 相同，保持一致）
+                if (newConvId != null && sessionMgr != null)
+                    SaveCozeConvId(sessionMgr, dto.SessionId, newConvId);
                 if (string.IsNullOrEmpty(newChatId) || string.IsNullOrEmpty(newConvId))
                 {
                     return $"新chat获取id失败 {newRespText}";
@@ -469,6 +475,20 @@ public class AgentSandboxService
                 ApproveToken = approveToken,
                 LogId = logId,
             };
+        }
+
+        // add_draft 参数校验：缺少 items 或 total_amount 直接报错，不建任何记录
+        if (dto.ToolName == "add_draft")
+        {
+            var hasItems = dto.Params.TryGetValue("items", out var itemsObj)
+                && itemsObj is System.Text.Json.JsonElement je
+                && je.ValueKind == System.Text.Json.JsonValueKind.Array
+                && je.EnumerateArray().Any();
+            var hasAmount = dto.Params.TryGetValue("total_amount", out var amtObj)
+                && amtObj is System.Text.Json.JsonElement je2
+                && (je2.GetDecimal() > 0m || dto.Params.TryGetValue("totalAmount", out var amtObj2));
+            if (!hasItems)
+                return new ToolRespDto { Code = 400, Msg = "add_draft 缺少 items 参数，无法建单，请提供订单明细" };
         }
 
         // ========== 有沙箱：先执行沙箱预演（事务回滚，数据不保存） ==========
@@ -1103,10 +1123,20 @@ public class AgentSandboxService
         await cmd.ExecuteNonQueryAsync();
     }
 
+    /// <summary>将扣子返回的真实 conversation_id 回填到会话状态，供后续请求复用以维持上下文连贯</summary>
+    public void SaveCozeConvId(SessionStateManager sessionMgr, string sessionId, string convId)
+    {
+        if (string.IsNullOrEmpty(convId)) return;
+        var state = sessionMgr.GetOrCreate(sessionId);
+        if (string.IsNullOrEmpty(state.CozeConvId))
+            state.CozeConvId = convId;
+    }
+
     #endregion
 
     /// <summary>
     /// SSE流式对话 stream=true，返回原始coze sse event流字符串，Controller转发给前端
+    /// 首次调用时自动捕获扣子返回的真实 conversation_id 并保存，后续请求复用该 ID 保持上下文连贯
     /// </summary>
     public async Task StreamChatAsync(
         string botId,
@@ -1114,7 +1144,9 @@ public class AgentSandboxService
         string userId,
         string userPrompt,
         Stream outputStream,
-        CancellationToken ct
+        CancellationToken ct,
+        SessionStateManager? sessionMgr = null,
+        string? sessionId = null
     )
     {
         var token = _cfg.CozeApiToken?.Trim();
@@ -1147,9 +1179,52 @@ public class AgentSandboxService
         using var resp = await client.SendAsync(msg, HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode();
 
-        // 修复：先 await 获取 Stream，再 CopyToAsync
         using var sseStream = await resp.Content.ReadAsStreamAsync(ct);
-        await sseStream.CopyToAsync(outputStream, ct);
+        using var reader = new System.IO.StreamReader(sseStream);
+
+        string? capturedConvId = null;
+        string? line;
+        while ((line = await reader.ReadLineAsync(ct)) != null)
+        {
+            // 解析首个 conversation.created 事件，提取真实 convId
+            if (capturedConvId == null && line.StartsWith("event:"))
+            {
+                var eventVal = line.Substring("event:".Length).Trim();
+                if (eventVal == "conversation.created")
+                {
+                    // 下一行通常是 data: {...}
+                    var dataLine = await reader.ReadLineAsync(ct);
+                    if (dataLine != null && dataLine.StartsWith("data:"))
+                    {
+                        try
+                        {
+                            var dataObj = JsonDocument.Parse(dataLine.Substring("data:".Length).Trim());
+                            if (
+                                dataObj.RootElement.TryGetProperty(
+                                    "conversation_id",
+                                    out var convIdEl
+                                )
+                            )
+                                capturedConvId = convIdEl.GetString()!;
+                        }
+                        catch { /* 解析失败忽略 */ }
+                    }
+                }
+            }
+
+            await outputStream.WriteAsync(
+                System.Text.Encoding.UTF8.GetBytes(line + "\n"),
+                ct
+            );
+        }
+
+        // 把捕获到的真实 convId 回填到会话状态，后续请求复用
+        if (
+            capturedConvId != null
+            && sessionMgr != null
+            && !string.IsNullOrEmpty(sessionId)
+        )
+            SaveCozeConvId(sessionMgr, sessionId, capturedConvId);
     }
 
     /// <summary>

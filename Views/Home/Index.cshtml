@@ -74,13 +74,13 @@
         cursor: pointer
     }
 
-    button.warn {
-        background: #f59e0b
-    }
+        button.warn {
+            background: #f59e0b
+        }
 
-    button.danger {
-        background: #ef4444
-    }
+        button.danger {
+            background: #ef4444
+        }
 
     pre {
         background: #1e293b;
@@ -108,7 +108,9 @@
         <button onclick="sendChat()">发送给Agent</button>
         <!--新增确认订单按钮，默认隐藏 -->
         <button id="btnConfirmOrder" onclick="confirmCreateOrder()"
-            style="background:#10b981;display:none">✅确认创建订单</button>
+                style="background:#10b981;display:none">
+            ✅确认创建订单
+        </button>
         <button onclick="sseSendChat()" style="display:none">【SSE流式发送（推荐）】</button>
 
         <pre id="chatResult"></pre>
@@ -143,12 +145,14 @@
     async function confirmCreateOrder() {
         appendMsg2("user", "[确认创建订单]");
         document.getElementById('btnConfirmOrder').style.display = 'none';
+
         try {
             const res = await fetch(`${BaseUrl}/Home/SendChat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sessionId: Sid, prompt: "", Action: "ConfirmAddDraft" })
             });
+
             const text = await res.text();
             appendMsg2("bot", text);
         } catch (err) {
@@ -198,7 +202,7 @@
         const url = `${BaseUrl}/Home/SseChat?sessionId=${encodeURIComponent(Sid)}&prompt=${encodeURIComponent(prompt)}`;
         sseSource = new EventSource(url);
 
-        sseSource.onmessage = function (e) {
+        sseSource.onmessage = function(e) {
             if (!e.data || e.data.startsWith(":")) return;
             try {
                 const obj = JSON.parse(e.data);
@@ -219,7 +223,7 @@
         };
 
         // ========= SSE断开：立刻启动前端轮询 =========
-        sseSource.onerror = async function () {
+        sseSource.onerror = async function() {
             botDiv.innerText += "\n[SSE流已断开，正在轮询获取对话结果...]";
             scrollBottom();
             sseSource?.close();
@@ -232,12 +236,15 @@
     async function startPolling(domTarget) {
         const maxLoop = 25;
         let loopCount = 0;
+
         while (loopCount < maxLoop) {
             loopCount++;
             await sleep(1200);
+
             try {
                 const resp = await fetch(`${BaseUrl}/Home/PollChatResult?conversationId=${encodeURIComponent(Sid)}`);
                 const json = await resp.json();
+
                 if (json.isFinish) {
                     domTarget.innerText = json.answer;
                     parseAndRenderButton(domTarget, domTarget.innerText);
@@ -248,6 +255,7 @@
                 console.warn("轮询异常", e);
             }
         }
+
         domTarget.innerText += "\n轮询获取结果超时";
     }
 
@@ -264,6 +272,7 @@
         // 解析 __TOOL_APPROVE__ 返回的json字符串
         const toolApproveRegex = /__TOOL_APPROVE__(\{.*\})/;
         const approveMatch = strContent.match(toolApproveRegex);
+
         if (approveMatch && approveMatch[1]) {
             try {
                 const toolResp = JSON.parse(approveMatch[1]);
@@ -332,7 +341,10 @@
         div.className = role === "user" ? "msg-user" : "msg-bot";
         div.innerText = strContent;
 
-        //正则提取token和logId
+        // 解析并渲染订单确认按钮（和 appendMsg 保持一致）
+        parseAndRenderButton(div, strContent);
+
+        // 正则提取token和logId
         const tokenMatch = strContent.match(/ApproveToken[:：]\s*([0-9a-fA-F]+)/);
         const logMatch = strContent.match(/LogId[:：]\s*([0-9a-fA-F]+)/);
 
@@ -341,9 +353,9 @@
             const bar = document.createElement("div");
             bar.className = "operate-bar";
             bar.innerHTML = `
-                    <span>检测到待审批工单：</span>
-                    <button onclick="doApprove('${tk}')">✅执行审批</button>
-                `;
+                        <span>检测到待审批工单：</span>
+                        <button onclick="doApprove('${tk}')">✅执行审批</button>
+                    `;
             div.appendChild(bar);
         }
 
@@ -352,9 +364,9 @@
             const bar = document.createElement("div");
             bar.className = "operate-bar";
             bar.innerHTML = `
-                    <span>可回滚：logId=${lid}</span>
-                    <button onclick="doRollback('${lid}')">↩️回滚</button>
-                `;
+                        <span>可回滚：logId=${lid}</span>
+                        <button onclick="doRollback('${lid}')">↩️回滚</button>
+                    `;
             div.appendChild(bar);
         }
 
@@ -388,4 +400,12 @@
         document.getElementById('rollbackResult').innerText = JSON.stringify(data, null, 2);
         appendMsg("bot", "【回滚结果】" + JSON.stringify(data, null, 2));
     }
+
+    // 回车发送，Shift+回车换行
+    document.getElementById('prompt').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendChat();
+        }
+    });
 </script>
