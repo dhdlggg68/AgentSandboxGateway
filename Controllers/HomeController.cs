@@ -1,14 +1,17 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 public class HomeController : Controller
 {
     private readonly AgentSandboxService _sandboxSvc;
     private readonly AppConfig _cfg;
+    private readonly SessionStateManager _sessionMgr; //新增
 
-    public HomeController(AgentSandboxService svc)
+    public HomeController(AgentSandboxService svc, SessionStateManager sessionMgr)
     {
         _sandboxSvc = svc;
+        _sessionMgr = sessionMgr;
     }
 
     public IActionResult Index()
@@ -22,17 +25,99 @@ public class HomeController : Controller
     [HttpPost]
     public async Task<IActionResult> SendChat([FromBody] ChatSendDto dto)
     {
+        //var resText = await _sandboxSvc.SendChat(dto);
+
+        //// 需要人工审批场景
+        //if (resText.StartsWith("__TOOL_APPROVE__"))
+        //{
+        //    var jsonPart = resText.Substring("__TOOL_APPROVE__".Length);
+
+        //    return Content(jsonPart);
+        //}
+
+        //return Content(resText);
+
+        var session = _sessionMgr.GetOrCreate(dto.SessionId);
+
+        //========== 分支1：按钮确认新建草稿订单 ==========
+        if (dto.Action == "ConfirmAddDraft")
+        {
+            if (session.Flow != SessionFlow.AddDraftConfirm || session.PendingOrder == null)
+            {
+                return Content("当前没有待确认的订单，请先发起新建订单。");
+            }
+
+            // 直接调用底层工具执行建单
+            using var conn = _sandboxSvc.GetConnection();
+            using var tx = conn.BeginTransaction();
+            var resObj = await _sandboxSvc.RunAddDraftInner(session.PendingOrder!, conn, tx);
+
+            tx.Commit();
+            _sessionMgr.Clear(dto.SessionId);
+
+            var jsonRes = System.Text.Json.JsonSerializer.Serialize(resObj);
+
+            return Content(jsonRes);
+        }
+
+        //========== 分支2：用户打字输入“正确/确认”兜底 ==========
+        var input = dto.Prompt.Trim();
+
+        var confirmWords = new HashSet<string> { "正确", "确认", "是的", "没错", "对" };
+
+        if (confirmWords.Contains(input))
+        {
+            if (session.Flow == SessionFlow.AddDraftConfirm && session.PendingOrder != null)
+            {
+                using var conn = _sandboxSvc.GetConnection();
+                using var tx = conn.BeginTransaction();
+                var resObj = await _sandboxSvc.RunAddDraftInner(session.PendingOrder!, conn, tx);
+
+                tx.Commit();
+                _sessionMgr.Clear(dto.SessionId);
+                var jsonRes = System.Text.Json.JsonSerializer.Serialize(resObj);
+
+                return Content(jsonRes);
+            }
+        }
+
+        //========== 下面完全是你原来的老代码，一字不动 ==========
         var resText = await _sandboxSvc.SendChat(dto);
 
-        // 需要人工审批场景
-        if (resText.StartsWith("__TOOL_APPROVE__"))
-        {
-            var jsonPart = resText.Substring("__TOOL_APPROVE__".Length);
+        // =========【新增】提取 {{PAYLOAD:xxx}} 存入会话状态 =========
+        var match = Regex.Match(resText, @"\{\{PAYLOAD:(.+?)\}\}\}", RegexOptions.Singleline);
 
+        if (match.Success)
+        {
+            var jsonPayload = match.Groups[1].Value;
+
+            try
+            {
+                var opt = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var payload = System.Text.Json.JsonSerializer.Deserialize<AddDraftOrderPayload>(jsonPayload, opt);
+
+                if (payload != null)
+                {
+                    _sessionMgr.SetAddDraftConfirm(dto.SessionId, payload);
+                }
+            }
+            catch
+            {
+                //解析失败忽略
+            }
+        }
+
+        // 把payload标记从返回给前端的文本中剔除
+        var displayText = Regex.Replace(resText, @"\{\{PAYLOAD:.+?\}\}\}", "", RegexOptions.Singleline);
+
+        // 需要人工审批场景
+        if (displayText.StartsWith("__TOOL_APPROVE__"))
+        {
+            var jsonPart = displayText.Substring("__TOOL_APPROVE__".Length);
             return Content(jsonPart);
         }
 
-        return Content(resText);
+        return Content(displayText);
     }
 
     /// <summary>

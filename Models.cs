@@ -1,23 +1,29 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+
 // ===== Coze插件对外入参（POST /api/tool/call）=====
 public class ToolRequest
 {
     [JsonPropertyName("session_id")]
     public string SessionId { get; set; } = string.Empty;
+
     [JsonPropertyName("tool_name")]
     public string ToolName { get; set; } = string.Empty;
+
     [JsonPropertyName("payload")]
     public JsonElement Payload { get; set; } = new();
 
     // ✅扣子插件回调时携带的上下文，用来保存到审批工单
     [JsonPropertyName("chat_id")]
     public string ChatId { get; set; } = string.Empty;
+
     [JsonPropertyName("conversation_id")]
     public string ConvId { get; set; } = string.Empty;
+
     [JsonPropertyName("tool_call_id")]
     public string ToolCallId { get; set; } = string.Empty;
 }
+
 // ===== Coze插件对外出参 =====
 public class ToolResponse
 {
@@ -27,6 +33,7 @@ public class ToolResponse
     public string? ApproveToken { get; set; }
     public string? LogId { get; set; }
 }
+
 // ===== Service内部使用，不对外暴露 =====
 public class ToolCallDto
 {
@@ -35,6 +42,7 @@ public class ToolCallDto
     public Dictionary<string, object> Params { get; set; } = new();
     public string? ApproveToken { get; set; }
 }
+
 public class ToolRespDto
 {
     public int Code { get; set; }
@@ -43,6 +51,7 @@ public class ToolRespDto
     public string? ApproveToken { get; set; }
     public string? LogId { get; set; }
 }
+
 public class ApproveTicket
 {
     public string LogId { get; set; } = string.Empty;
@@ -55,11 +64,14 @@ public class ApproveTicket
     public string ConvId { get; set; } = string.Empty;
     public string ToolCallId { get; set; } = string.Empty;
 }
+
 public class ChatSendDto
 {
     public string SessionId { get; set; } = string.Empty;
     public string Prompt { get; set; } = string.Empty;
+    public string? Action { get; set; } //新增
 }
+
 public class ToolPolicy
 {
     public string Level { get; set; } = string.Empty;
@@ -76,6 +88,7 @@ public class OrderEntity
     public int Status { get; set; }
     public string CreateTime { get; set; } = string.Empty;
 }
+
 //订单明细
 public class OrderItemEntity
 {
@@ -91,17 +104,22 @@ public class AddDraftOrderPayload
 {
     [JsonPropertyName("order_id")]
     public string OrderId { get; set; } = string.Empty;
+
     [JsonPropertyName("total_amount")]
     public decimal TotalAmount { get; set; }
+
     [JsonPropertyName("items")]
     public List<OrderItemPayload> Items { get; set; } = new();
 }
+
 public class OrderItemPayload
 {
     [JsonPropertyName("product_name")]
     public string ProductName { get; set; } = string.Empty;
+
     [JsonPropertyName("price")]
     public decimal Price { get; set; }
+
     [JsonPropertyName("quantity")]
     public int Quantity { get; set; }
 }
@@ -110,6 +128,7 @@ public class BatchUpdateOrderPayload
 {
     [JsonPropertyName("target_id")]
     public string TargetId { get; set; } = string.Empty;
+
     [JsonPropertyName("status")]
     public int Status { get; set; }
 }
@@ -133,8 +152,9 @@ public enum SessionFlow
 {
     /// <summary>空闲，无待确认业务</summary>
     Idle,
+
     /// <summary>新增草稿订单，等待用户确认</summary>
-    AddDraftConfirm
+    AddDraftConfirm,
 }
 
 public class OrderItem
@@ -151,4 +171,19 @@ public class SessionState
 {
     public SessionFlow Flow { get; set; } = SessionFlow.Idle;
     public AddDraftOrderPayload? PendingOrder { get; set; }
+}
+
+public class ChatResponse
+{
+    public bool Success { get; set; }
+    public string Reply { get; set; } = "";
+}
+
+public class ChatRequest
+{
+    public string SessionId { get; set; } = "";
+    public string UserInput { get; set; } = "";
+
+    /// <summary>动作标识：ConfirmAddDraft 确认新建订单</summary>
+    public string? Action { get; set; }
 }

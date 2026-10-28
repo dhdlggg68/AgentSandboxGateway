@@ -55,7 +55,8 @@
         border-radius: 6px;
     }
 
-    textarea, input {
+    textarea,
+    input {
         width: 100%;
         padding: 10px;
         border-radius: 6px;
@@ -73,13 +74,13 @@
         cursor: pointer
     }
 
-        button.warn {
-            background: #f59e0b
-        }
+    button.warn {
+        background: #f59e0b
+    }
 
-        button.danger {
-            background: #ef4444
-        }
+    button.danger {
+        background: #ef4444
+    }
 
     pre {
         background: #1e293b;
@@ -105,6 +106,9 @@
         <textarea id="prompt" rows="3" placeholder="输入指令，例如：帮我删除订单102的单据"></textarea>
         <br />
         <button onclick="sendChat()">发送给Agent</button>
+        <!--新增确认订单按钮，默认隐藏 -->
+        <button id="btnConfirmOrder" onclick="confirmCreateOrder()"
+            style="background:#10b981;display:none">✅确认创建订单</button>
         <button onclick="sseSendChat()" style="display:none">【SSE流式发送（推荐）】</button>
 
         <pre id="chatResult"></pre>
@@ -135,6 +139,23 @@
     let sseSource = null;
     let pollingTimer = null;
 
+    // 新增：点击确认订单按钮
+    async function confirmCreateOrder() {
+        appendMsg2("user", "[确认创建订单]");
+        document.getElementById('btnConfirmOrder').style.display = 'none';
+        try {
+            const res = await fetch(`${BaseUrl}/Home/SendChat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: Sid, prompt: "", Action: "ConfirmAddDraft" })
+            });
+            const text = await res.text();
+            appendMsg2("bot", text);
+        } catch (err) {
+            appendMsg2("bot", "确认建单异常：" + err.message);
+        }
+    }
+
     async function sendChat() {
         const prompt = document.getElementById('prompt').value.trim();
         if (!prompt) return;
@@ -145,7 +166,7 @@
             const res = await fetch(`${BaseUrl}/Home/SendChat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId: Sid, prompt: prompt })
+                body: JSON.stringify({ sessionId: Sid, prompt: prompt, Action: "" })
             });
 
             const replyText = await res.text();

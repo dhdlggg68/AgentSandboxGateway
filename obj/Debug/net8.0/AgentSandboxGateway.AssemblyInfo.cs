@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AgentSandboxGateway")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+de07b760e40d1c59aec6f4844b008a2f20c86c6a")]
 [assembly: System.Reflection.AssemblyProductAttribute("AgentSandboxGateway")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AgentSandboxGateway")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
