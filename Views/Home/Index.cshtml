@@ -1,0 +1,370 @@
+﻿@{
+    ViewData["Title"] = "Agent沙箱演示";
+    var sid = ViewBag.SessionId as string;
+    // ========= 调试开关：false=给客户看，隐藏审批/回滚面板；true=开发调试显示 =========
+    bool ShowDebugPanel = false;
+}
+<style>
+    * {
+        box-sizing: border-box;
+        font-family: system-ui
+    }
+
+    .wrap {
+        max-width: 1000px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+
+    .card {
+        border: 1px solid #222;
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+        background: #0f172a;
+        color: #e2e8f0
+    }
+
+    .title {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 12px;
+        color: #38bdf8
+    }
+
+    .msg-user {
+        background: #254280;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin: 6px 0;
+        text-align: right;
+    }
+
+    .msg-bot {
+        background: #273043;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin: 6px 0;
+        text-align: left;
+    }
+
+    .operate-bar {
+        margin: 8px 0;
+        padding: 8px;
+        background: #3b382e;
+        border-radius: 6px;
+    }
+
+    textarea, input {
+        width: 100%;
+        padding: 10px;
+        border-radius: 6px;
+        border: none;
+        margin: 8px 0
+    }
+
+    button {
+        padding: 8px 16px;
+        border-radius: 6px;
+        border: none;
+        background: #2563eb;
+        color: #fff;
+        margin: 4px;
+        cursor: pointer
+    }
+
+        button.warn {
+            background: #f59e0b
+        }
+
+        button.danger {
+            background: #ef4444
+        }
+
+    pre {
+        background: #1e293b;
+        padding: 10px;
+        border-radius: 6px;
+        overflow: auto;
+        color: #94a3b8
+    }
+
+    .chat-box {
+        border: 1px solid #444;
+        min-height: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+</style>
+<div class="wrap">
+    <div class="card">
+        <div class="title">🔹 智能体对话（SessionId：@sid）</div>
+        <div class="chat-box" id="chatBox"></div>
+        <textarea id="prompt" rows="3" placeholder="输入指令，例如：帮我删除订单102的单据"></textarea>
+        <br />
+        <button onclick="sendChat()">发送给Agent</button>
+        <button onclick="sseSendChat()" style="display:none">【SSE流式发送（推荐）】</button>
+
+        <pre id="chatResult"></pre>
+    </div>
+    @if (ShowDebugPanel)
+    {
+        <div class="card">
+            <div class="title">🔹 人工审批（高危操作触发）</div>
+            <input type="text" id="approveToken" placeholder="粘贴返回的approveToken" />
+            <button class="warn" onclick="submitApprove()">确认审批，执行沙箱+生产</button>
+            <pre id="approveResult"></pre>
+        </div>
+
+        <div class="card">
+            <div class="title">🔹 回滚操作（输入logId撤销）</div>
+            <input type="text" id="rollbackLogId" placeholder="粘贴logId" />
+            <button class="danger" onclick="doRollback()">一键回滚</button>
+            <pre id="rollbackResult"></pre>
+        </div>
+    }
+
+</div>
+
+<script>
+    const Sid = '@sid'; // 这里sid就是coze的conversation_id！！！！！
+    const BaseUrl = window.location.origin;
+
+    let sseSource = null;
+    let pollingTimer = null;
+
+    async function sendChat() {
+        const prompt = document.getElementById('prompt').value.trim();
+        if (!prompt) return;
+        appendMsg2("user", prompt);
+        document.getElementById('prompt').value = "";
+
+        try {
+            const res = await fetch(`${BaseUrl}/Home/SendChat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: Sid, prompt: prompt })
+            });
+
+            const replyText = await res.text();
+
+            appendMsg2("bot", replyText);
+            document.getElementById('chatResult').innerText = replyText;
+        } catch (err) {
+            appendMsg2("bot", "请求异常：" + err.message);
+        }
+    }
+
+    // SSE流式发送
+    async function sseSendChat() {
+        const promptInput = document.getElementById('prompt');
+        const prompt = promptInput.value.trim();
+        if (!prompt) return;
+        promptInput.value = "";
+        appendMsg("user", prompt);
+
+        if (sseSource) sseSource.close();
+        clearInterval(pollingTimer);
+
+        const botDiv = document.createElement("div");
+        botDiv.className = "msg-bot";
+        botDiv.innerText = "";
+        document.getElementById("chatBox").appendChild(botDiv);
+
+        // Sid 就是我们的 conversation_id
+        const url = `${BaseUrl}/Home/SseChat?sessionId=${encodeURIComponent(Sid)}&prompt=${encodeURIComponent(prompt)}`;
+        sseSource = new EventSource(url);
+
+        sseSource.onmessage = function (e) {
+            if (!e.data || e.data.startsWith(":")) return;
+            try {
+                const obj = JSON.parse(e.data);
+                if (obj.type === "conversation.message.delta") {
+                    botDiv.innerText += obj.content;
+                    scrollBottom();
+                }
+                if (obj.type === "conversation.chat.completed") {
+                    parseAndRenderButton(botDiv, botDiv.innerText);
+                    sseSource?.close();
+                }
+                // 遇到外部http工具，SSE即将断开
+                if (obj.type === "conversation.chat.requires_action") {
+                    botDiv.innerText += "\n[触发工具调用，SSE即将断开，后台处理中...]";
+                    scrollBottom();
+                }
+            } catch (err) { }
+        };
+
+        // ========= SSE断开：立刻启动前端轮询 =========
+        sseSource.onerror = async function () {
+            botDiv.innerText += "\n[SSE流已断开，正在轮询获取对话结果...]";
+            scrollBottom();
+            sseSource?.close();
+            // 启动轮询
+            await startPolling(botDiv);
+        };
+    }
+
+    // 轮询后端 PollChatResult
+    async function startPolling(domTarget) {
+        const maxLoop = 25;
+        let loopCount = 0;
+        while (loopCount < maxLoop) {
+            loopCount++;
+            await sleep(1200);
+            try {
+                const resp = await fetch(`${BaseUrl}/Home/PollChatResult?conversationId=${encodeURIComponent(Sid)}`);
+                const json = await resp.json();
+                if (json.isFinish) {
+                    domTarget.innerText = json.answer;
+                    parseAndRenderButton(domTarget, domTarget.innerText);
+                    scrollBottom();
+                    return;
+                }
+            } catch (e) {
+                console.warn("轮询异常", e);
+            }
+        }
+        domTarget.innerText += "\n轮询获取结果超时";
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function scrollBottom() {
+        const box = document.getElementById("chatBox");
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function parseAndRenderButton(parentDom, strContent) {
+        // 解析 __TOOL_APPROVE__ 返回的json字符串
+        const toolApproveRegex = /__TOOL_APPROVE__(\{.*\})/;
+        const approveMatch = strContent.match(toolApproveRegex);
+        if (approveMatch && approveMatch[1]) {
+            try {
+                const toolResp = JSON.parse(approveMatch[1]);
+                if (toolResp.ApproveToken) {
+                    const tk = toolResp.ApproveToken;
+                    const lid = toolResp.LogId || "";
+                    const bar = document.createElement("div");
+                    bar.className = "operate-bar";
+                    let htmlStr = `<div style="margin-bottom:8px;">⚠️高危操作需要人工确认</div>`;
+                    htmlStr += `<button onclick="doApprove('${tk}')">✅确认执行该操作</button>`;
+                    if (lid) {
+                        htmlStr += `<span style="margin-left:8px;">LogId:${lid}</span>`;
+                    }
+                    bar.innerHTML = htmlStr;
+                    parentDom.appendChild(bar);
+                }
+            } catch (e) {
+                console.warn("解析tool approve json失败", e);
+            }
+        }
+
+        // ========= add_draft 订单预览卡片 =========
+        // 匹配后端返回的add_draft执行结果，格式示例：{"code":0,"msg":"草稿订单创建成功","db_id":12,"order_id":"ORD20261028001","items":[...]}
+        const addDraftRegex = /"code"\s*:\s*0[^}]*"msg"\s*:\s*"草稿订单创建成功"[^}]*}/;
+        const draftMatch = strContent.match(addDraftRegex);
+
+        if (draftMatch) {
+            try {
+                const jsonStr = draftMatch[0];
+                const orderInfo = JSON.parse(jsonStr);
+                const cardDiv = document.createElement("div");
+                cardDiv.style.border = "1px solid #475569";
+                cardDiv.style.borderRadius = "8px";
+                cardDiv.style.padding = "12px";
+                cardDiv.style.margin = "8px 0";
+                cardDiv.style.background = "#1e293b";
+
+                let html = `<div style="font-weight:bold;color:#38bdf8;margin-bottom:8px;">📋草稿订单已创建</div>`;
+                html += `<div>订单号：${orderInfo.order_id}</div>`;
+                html += `<div>数据库ID：${orderInfo.db_id}</div>`;
+                html += `<div style="margin-top:6px;">${orderInfo.msg}</div>`;
+
+                cardDiv.innerHTML = html;
+                parentDom.appendChild(cardDiv);
+            } catch (err) {
+                console.log("订单卡片解析忽略", err);
+            }
+        }
+
+        scrollBottom();
+    }
+
+    function appendMsg(role, content) {
+        const strContent = String(content ?? "");
+        const div = document.createElement("div");
+        div.className = role === "user" ? "msg-user" : "msg-bot";
+        div.innerText = strContent;
+        parseAndRenderButton(div, strContent);
+        document.getElementById("chatBox").appendChild(div);
+        scrollBottom();
+    }
+
+    function appendMsg2(role, content) {
+        const strContent = String(content ?? "");
+        const div = document.createElement("div");
+        div.className = role === "user" ? "msg-user" : "msg-bot";
+        div.innerText = strContent;
+
+        //正则提取token和logId
+        const tokenMatch = strContent.match(/ApproveToken[:：]\s*([0-9a-fA-F]+)/);
+        const logMatch = strContent.match(/LogId[:：]\s*([0-9a-fA-F]+)/);
+
+        if (tokenMatch && tokenMatch[1]) {
+            const tk = tokenMatch[1];
+            const bar = document.createElement("div");
+            bar.className = "operate-bar";
+            bar.innerHTML = `
+                    <span>检测到待审批工单：</span>
+                    <button onclick="doApprove('${tk}')">✅执行审批</button>
+                `;
+            div.appendChild(bar);
+        }
+
+        if (logMatch && logMatch[1]) {
+            const lid = logMatch[1];
+            const bar = document.createElement("div");
+            bar.className = "operate-bar";
+            bar.innerHTML = `
+                    <span>可回滚：logId=${lid}</span>
+                    <button onclick="doRollback('${lid}')">↩️回滚</button>
+                `;
+            div.appendChild(bar);
+        }
+
+        document.getElementById("chatBox").appendChild(div);
+        document.getElementById("chatBox").scrollTop = document.getElementById("chatBox").scrollHeight;
+    }
+
+    async function doApprove(token) {
+        appendMsg("bot", "正在提交审批，请稍候...");
+
+        try {
+            const res = await fetch(`${baseUrl}/api/tool/approve?approveToken=${token}`, { method: 'POST' });
+            const data = await res.json();
+
+            appendMsg("bot", "【审批提交完成】" + JSON.stringify(data, null, 2));
+            appendMsg("bot", "💡审批已执行完毕，请重新输入指令发送，获取AI回复");
+        } catch (err) {
+            appendMsg("bot", "审批调用异常：" + err.message);
+        }
+    }
+
+    async function submitApprove() {
+        const tk = document.getElementById('approveToken').value;
+        await doApprove(tk);
+    }
+
+    async function doRollback() {
+        const lid = document.getElementById('rollbackLogId').value;
+        const res = await fetch(`${BaseUrl}/api/tool/rollback?logId=${lid}`, { method: 'POST' });
+        const data = await res.json();
+        document.getElementById('rollbackResult').innerText = JSON.stringify(data, null, 2);
+        appendMsg("bot", "【回滚结果】" + JSON.stringify(data, null, 2));
+    }
+</script>

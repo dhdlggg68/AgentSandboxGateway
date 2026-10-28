@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "AgentSandboxGateway": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "http://localhost:11274;https://localhost:11273"
+    }
+  }
+}
